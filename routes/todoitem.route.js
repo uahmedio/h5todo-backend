@@ -9,11 +9,13 @@ const router = express.Router();
 // Authentication Strategies
 const passportJWT = passport.authenticate("jwt", { session: false });
 
+router.get("/one/:id", passportJWT, TodoItemController.get_findTodoItemId);
+
 router.post("/create", passportJWT, TodoItemController.post_createTodoItem);
 
-router.get("/:userid", passportJWT, TodoItemController.get_findUserTodos);
+router.get("/:userid", TodoItemController.get_findUserTodos);
 
-router.put("/:id", passportJWT, TodoItemController.put_updateTodoItem);
+router.put("/", passportJWT, TodoItemController.put_updateTodoItem);
 
 router.delete("/:id", passportJWT, TodoItemController.delete_deleteTodoItem);
 

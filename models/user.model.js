@@ -37,6 +37,11 @@ const User = sequelize.define(
 			beforeCreate: (user, options) => {
 				user.password = bcrypt.hashSync(user.password, 10);
 			},
+			beforeUpdate: (user, options) => {
+				if (user.password !== user._previousDataValues.password) {
+					user.password = bcrypt.hashSync(user.password, 10);
+				}
+			},
 		},
 	}
 );

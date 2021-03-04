@@ -4,13 +4,17 @@ const config = require("../config/config");
 const sequelize = require("sequelize");
 const Sequelize = require("../config/database");
 
+var CryptoJS = require("crypto-js");
+
 module.exports = {
 	post_createTodoItem: async (req, res) => {
 		const { title, description, userId } = req.body;
 
 		try {
+			const encryptedTitle = CryptoJS.AES.encrypt(title, config.CRYPTO_SECRET).toString();
+
 			const newTodoItem = await TodoItem.create({
-				title,
+				title: encryptedTitle,
 				description,
 				done: 0,
 				userId,
@@ -26,6 +30,28 @@ module.exports = {
 			return res.status(500).json({ message: "Server error" });
 		}
 	},
+	get_findTodoItemId: async (req, res) => {
+		const { id } = req.params;
+
+		try {
+			const todoitem = await TodoItem.findByPk(id);
+
+			if (!todoitem) {
+				return res.status(404).json({ message: "Could not find todoitem" });
+			}
+
+			// Decrypt
+			var bytes = CryptoJS.AES.decrypt(todoitem.title, config.CRYPTO_SECRET);
+			var originalText = bytes.toString(CryptoJS.enc.Utf8);
+
+			todoitem.title = originalText;
+
+			return res.status(200).json({ todoitem });
+		} catch (error) {
+			console.log(error);
+			return res.status(500).json({ message: "Error searching for todoitem" });
+		}
+	},
 	get_findUserTodos: async (req, res) => {
 		const { userid } = req.params;
 
@@ -36,7 +62,16 @@ module.exports = {
 				return res.status(400).json({ message: "Searching failed for todo items" });
 			}
 
-			return res.status(200).json({ todoItems: todos });
+			const myTodos = todos.map((todo) => {
+				const d = todo;
+				// Decrypt
+				var bytes = CryptoJS.AES.decrypt(d.title, config.CRYPTO_SECRET);
+				var originalText = bytes.toString(CryptoJS.enc.Utf8);
+				todo.title = originalText;
+				return d;
+			});
+
+			return res.status(200).json({ todoItems: myTodos });
 		} catch (error) {
 			console.log("Finding all todos failed", error);
 			return res.status(500).json({ message: "Server error" });
@@ -53,10 +88,12 @@ module.exports = {
 				return res.status(404).json({ message: "Todo item not found" });
 			}
 
-			// Så nu opdaterer vi vores todo item
-			await todoitem.update({ title, description, done });
+			const encryptedTitle = CryptoJS.AES.encrypt(title, config.CRYPTO_SECRET).toString();
 
-			return res.status(200).json({ message: "Success" });
+			// Så nu opdaterer vi vores todo item
+			await todoitem.update({ title: encryptedTitle, description, done });
+
+			return res.status(200).json({ todoitem, message: "Success" });
 		} catch (error) {
 			console.log("updating todo item failed", error);
 			return res.status(500).json({ message: "Server error" });
